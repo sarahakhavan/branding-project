@@ -1,0 +1,14 @@
+# Virtual environment
+venv/
+__pycache__/
+*.pyc
+
+# Jupyter (if you use it)
+.ipynb_checkpoints/
+
+# Images (optional)
+*.jpg
+*.png
+
+# macOS / system
+.DS_Store
