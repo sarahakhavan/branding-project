@@ -95,15 +95,15 @@ white_overlay = np.full((*overlay_img.shape, 3), 255).astype(np.float32)  # pure
 
 # Set opacity level (e.g., 0.2 for 20% visibility)
 # Blend the pattern with white based on the mask and desired opacity
-opacity = 0.3  # adjust for stronger or softer overlay
+opacity = 0.2  # adjust for stronger or softer overlay
 pattern_blend = (
     clean_overlay_3ch * (1 - white_mask_3ch * opacity) + 
     white_overlay * (white_mask_3ch * opacity)
 )
 pattern_blend = np.clip(pattern_blend, 0, 255).astype(np.uint8)
 
-x_offset = 100  # horizontal position on background
-y_offset = 150  # vertical position on background
+x_offset = 0  # horizontal position on background
+y_offset = 0  # vertical position on background
 
 # Blend white into darkened background
 bg = background_dark.astype(np.uint8)
@@ -117,7 +117,7 @@ ptn_crop = pattern_blend[0: y_end - y_offset, 0: x_end - x_offset]
 
 # Replace region in the background
 bg_region = bg[y_offset:y_end, x_offset:x_end]
-blended_region = cv2.addWeighted(bg_region.astype(np.float32), 1.0, ptn_crop.astype(np.float32), 1.0, 0)
+blended_region = cv2.addWeighted(bg_region.astype(np.float32), 1.0, ptn_crop.astype(np.float32), opacity, 0)
 bg[y_offset:y_end, x_offset:x_end] = np.clip(blended_region, 0, 255).astype(np.uint8)
 
 # Update background
