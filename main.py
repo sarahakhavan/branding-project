@@ -65,19 +65,19 @@ combined = cv2.addWeighted(foreground_sharp, 1.2, background_dark, 0.8, 0)
 
 # --- Reading Security Layer ---
 
-overlay_img = cv2.imread("SL.jpg", cv2.IMREAD_GRAYSCALE)
+overlay_img_bg = cv2.imread("SL1.jpg", cv2.IMREAD_GRAYSCALE)
 
 # --- Create a binary mask of just the white areas ---
-_, white_mask = cv2.threshold(overlay_img, 240, 255, cv2.THRESH_BINARY)
+_, white_mask = cv2.threshold(overlay_img_bg, 240, 255, cv2.THRESH_BINARY)
 
 # --- Create a mask for the gray areas ---
-# You can adjust this threshold for the range of gray values you want to exclude
-gray_mask = cv2.inRange(overlay_img, 100, 200)  # Mask for gray areas
+# Adjust this threshold for the range of gray values to exclude
+gray_mask = cv2.inRange(overlay_img_bg, 100, 200)  # Mask for gray areas
 gray_mask_3ch = cv2.merge([gray_mask] * 3)  # Convert to 3-channel
 
 # --- Create a clean overlay (only the white areas) ---
 # Set gray areas (those in the gray mask) to black (remove them completely)
-clean_overlay = overlay_img.copy()
+clean_overlay = overlay_img_bg.copy()
 clean_overlay[gray_mask == 255] = 0  # Set gray areas to 0 (black)
 
 # --- Convert to 3-channel for blending ---
@@ -87,15 +87,15 @@ clean_overlay_3ch = cv2.merge([clean_overlay] * 3)
 white_mask_float = white_mask.astype(np.float32) / 255.0
 white_mask_float = cv2.GaussianBlur(white_mask_float, (15, 15), 0)
 
-overlay_img_3ch = cv2.merge([overlay_img] * 3)
+overlay_img_3ch = cv2.merge([overlay_img_bg] * 3)
 
 # Expand to 3 channels and apply transparency (alpha blending)
 white_mask_3ch = cv2.merge([white_mask_float] * 3)
-white_overlay = np.full((*overlay_img.shape, 3), 255).astype(np.float32)  # pure white image
+white_overlay = np.full((*overlay_img_bg.shape, 3), 255).astype(np.float32)  # pure white image
 
 # Set opacity level (e.g., 0.2 for 20% visibility)
 # Blend the pattern with white based on the mask and desired opacity
-opacity = 0.2  # adjust for stronger or softer overlay
+opacity = 0.3  # adjust for stronger or softer overlay
 pattern_blend = (
     clean_overlay_3ch * (1 - white_mask_3ch * opacity) + 
     white_overlay * (white_mask_3ch * opacity)
@@ -108,7 +108,7 @@ y_offset = 0  # vertical position on background
 # Blend white into darkened background
 bg = background_dark.astype(np.uint8)
 bg_h, bg_w = bg.shape[:2]
-ptn_h, ptn_w = overlay_img.shape[:2]
+ptn_h, ptn_w = overlay_img_bg.shape[:2]
 
 # Ensure the overlay doesn't go out of bounds
 x_end = min(x_offset + ptn_w, bg_w)
@@ -123,9 +123,74 @@ bg[y_offset:y_end, x_offset:x_end] = np.clip(blended_region, 0, 255).astype(np.u
 # Update background
 background_with_overlay = bg
 
+# Creating an image consisting of the background with its overlay and the foreground
+combined = foreground_sharp.astype(np.float32) + background_with_overlay.astype(np.float32) * (1 - mask_3ch)
+
+# --- Reading Overlay for Foreground
+
+overlay_img_fg = cv2.imread("SL2.jpg", cv2.IMREAD_GRAYSCALE)
+
+# --- Create a binary mask of just the white areas ---
+_, white_mask_fg = cv2.threshold(overlay_img_fg, 240, 255, cv2.THRESH_BINARY)
+
+# --- Create a mask for the gray areas ---
+# You can adjust this threshold for the range of gray values you want to exclude
+gray_mask_fg = cv2.inRange(overlay_img_fg, 100, 200)  # Mask for gray areas
+gray_mask_fg_3ch = cv2.merge([gray_mask_fg] * 3)  # Convert to 3-channel
+
+# --- Create a clean overlay (only the white areas) ---
+# Set gray areas (those in the gray mask) to black (remove them completely)
+clean_overlay_fg = overlay_img_fg.copy()
+clean_overlay_fg[gray_mask_fg == 255] = 0  # Set gray areas to 0 (black)
+
+# --- Convert to 3-channel for blending ---
+clean_overlay_fg_3ch = cv2.merge([clean_overlay_fg] * 3)
+
+# Optional: feather the white mask
+white_mask_float_fg = white_mask_fg.astype(np.float32) / 255.0
+white_mask_float_fg = cv2.GaussianBlur(white_mask_float_fg, (15, 15), 0)
+
+overlay_img_fg_3ch = cv2.merge([overlay_img_fg] * 3)
+
+# Expand to 3 channels and apply transparency (alpha blending)
+white_mask_fg_3ch = cv2.merge([white_mask_float_fg] * 3)
+white_overlay_fg = np.full((*overlay_img_fg.shape, 3), 255).astype(np.float32)  # pure white image
+
+# Set opacity level (e.g., 0.2 for 20% visibility)
+# Blend the pattern with white based on the mask and desired opacity
+opacity_fg = 0.3  
+pattern_blend_fg = (
+    clean_overlay_fg_3ch * (1 - white_mask_fg_3ch * opacity_fg) + 
+    white_overlay_fg * (white_mask_fg_3ch * opacity_fg)
+)
+pattern_blend_fg = np.clip(pattern_blend_fg, 0, 255).astype(np.uint8)
+
+fg_x_offset = 920  # horizontal position on background
+fg_y_offset = 0  # vertical position on background
+
+# Blend white into darkened background
+combined_pic = combined.astype(np.uint8)
+combined_h, combined_w = combined_pic.shape[:2]
+fg_ptn_h, fg_ptn_w = overlay_img_fg.shape[:2]
+
+# Ensure the overlay doesn't go out of bounds
+fg_x_end = min(fg_x_offset + fg_ptn_w, combined_w)
+fg_y_end = min(fg_y_offset + fg_ptn_h, combined_h)
+fg_ptn_crop = pattern_blend_fg[0: fg_y_end - fg_y_offset, 0: fg_x_end - fg_x_offset]
+
+# Replace region in the background
+fg_region = combined_pic[fg_y_offset:fg_y_end, fg_x_offset:fg_x_end]
+fg_blended_region = cv2.addWeighted(fg_region.astype(np.float32), 1.0, fg_ptn_crop.astype(np.float32), opacity_fg, 0)
+combined_pic[fg_y_offset:fg_y_end, fg_x_offset:fg_x_end] = np.clip(fg_blended_region, 0, 255).astype(np.uint8)
+
+# Update foreground
+foreground_with_overlay = combined_pic
+
 # --- Step 7: Final composition ---
-final_result = foreground_sharp.astype(np.float32) * mask_3ch + background_with_overlay.astype(np.float32) * (1 - mask_3ch)
-final_result = np.clip(final_result, 0, 255).astype(np.uint8)
+final_result = np.clip(combined, 0, 255).astype(np.uint8)
+final_region = final_result[fg_y_offset:fg_y_end, fg_x_offset:fg_x_end]
+final_blended = cv2.addWeighted(final_region.astype(np.float32), 1.0, fg_ptn_crop.astype(np.float32), opacity_fg, 0)
+final_result[fg_y_offset:fg_y_end, fg_x_offset:fg_x_end] = np.clip(final_blended, 0, 255).astype(np.uint8)
 
 cv2.imshow("Final Result with White Overlay", final_result)
 cv2.waitKey(0)
