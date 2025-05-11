@@ -60,9 +60,6 @@ foreground_smoothed = cv2.bilateralFilter(foreground_sharp, d=15, sigmaColor=75,
 # exposure_factor = 1.2  # Try values between 1.1–1.5
 # foreground_exposed = np.clip(foreground_sharp.astype(np.float32) * exposure_factor, 0, 255).astype(np.uint8)
 
-# --- Combine the two ---
-combined = cv2.addWeighted(foreground_sharp, 1.2, background_dark, 0.8, 0)
-
 # --- Reading Security Layer ---
 
 overlay_img_bg = cv2.imread("SL1.jpg", cv2.IMREAD_GRAYSCALE)
@@ -93,14 +90,28 @@ overlay_img_3ch = cv2.merge([overlay_img_bg] * 3)
 white_mask_3ch = cv2.merge([white_mask_float] * 3)
 white_overlay = np.full((*overlay_img_bg.shape, 3), 255).astype(np.float32)  # pure white image
 
+# Create a vertical alpha gradient mask (top = 1.0, bottom = 0.0)
+height = overlay_img_bg.shape[0]
+fade_start = int(height * 0.01)  # start fading from 40% down (adjust this value)
+fade_end = int(height * 0.5)
+
+gradient = np.ones(height, dtype=np.float32)
+gradient[fade_start:fade_end] = np.linspace(1.0, 0.0, fade_end - fade_start)
+gradient[fade_end:] = 0.0
+gradient_mask = np.repeat(gradient[:, np.newaxis], overlay_img_bg.shape[1], axis=1)  # apply across width
+
+
+# Expand to 3 channels
+gradient_mask_3ch = np.stack([gradient_mask]*3, axis=-1)
+
+# Apply this gradient to your white mask alpha before blending
+# Multiply white_mask_3ch (already 0–1) with the gradient
+fading_mask = white_mask_3ch * gradient_mask_3ch
+
 # Set opacity level (e.g., 0.2 for 20% visibility)
 # Blend the pattern with white based on the mask and desired opacity
-opacity = 0.3  # adjust for stronger or softer overlay
-pattern_blend = (
-    clean_overlay_3ch * (1 - white_mask_3ch * opacity) + 
-    white_overlay * (white_mask_3ch * opacity)
-)
-pattern_blend = np.clip(pattern_blend, 0, 255).astype(np.uint8)
+opacity = 0.5  # adjust for stronger or softer overlay
+
 
 x_offset = 0  # horizontal position on background
 y_offset = 0  # vertical position on background
@@ -110,15 +121,29 @@ bg = background_dark.astype(np.uint8)
 bg_h, bg_w = bg.shape[:2]
 ptn_h, ptn_w = overlay_img_bg.shape[:2]
 
+
 # Ensure the overlay doesn't go out of bounds
 x_end = min(x_offset + ptn_w, bg_w)
 y_end = min(y_offset + ptn_h, bg_h)
+
+bg_region = bg[y_offset:y_end, x_offset:x_end]
+fading_mask_region = fading_mask[y_offset:y_end, x_offset:x_end]
+
+clean_overlay_3ch_region = clean_overlay_3ch[y_offset:y_end, x_offset:x_end]
+
+pattern_blend = (
+    clean_overlay_3ch_region * (fading_mask_region * opacity) + 
+    bg_region * (1 - fading_mask_region * opacity)
+)
+
+pattern_blend = np.clip(pattern_blend, 0, 255).astype(np.uint8)
+
 ptn_crop = pattern_blend[0: y_end - y_offset, 0: x_end - x_offset]
 
 # Replace region in the background
-bg_region = bg[y_offset:y_end, x_offset:x_end]
-blended_region = cv2.addWeighted(bg_region.astype(np.float32), 1.0, ptn_crop.astype(np.float32), opacity, 0)
-bg[y_offset:y_end, x_offset:x_end] = np.clip(blended_region, 0, 255).astype(np.uint8)
+
+bg[y_offset:y_end, x_offset:x_end] = pattern_blend.astype(np.uint8)
+
 
 # Update background
 background_with_overlay = bg
