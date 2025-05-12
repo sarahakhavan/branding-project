@@ -3,8 +3,18 @@ import numpy as np
 from rembg import remove
 from PIL import Image
 
+import argparse
+
+# --- Set up argument parser ---
+parser = argparse.ArgumentParser(description="Process an image.")
+parser.add_argument("image_path", help="Path to the image file", type=str)
+
+# --- Parse the arguments ---
+args = parser.parse_args()
+image_path = args.image_path
+
 # --- Load original image ---
-img = cv2.imread("ax.jpg")
+img = cv2.imread(image_path)
 if img is not None:
     print("Image loaded successfully.")
 else:
@@ -13,7 +23,7 @@ else:
 original = img.copy()
 
 # --- Use rembg to get the mask (alpha channel) ---
-input_pil = Image.open("ax.jpg")
+input_pil = Image.open(image_path)
 output_pil = remove(input_pil)
 output_np = np.array(output_pil)
 
@@ -63,7 +73,7 @@ foreground_bright = cv2.LUT(foreground_sharp.astype(np.uint8), lut)
 
 # --- Reading Security Layer ---
 
-overlay_img_bg = cv2.imread("SL1.jpg", cv2.IMREAD_GRAYSCALE)
+overlay_img_bg = cv2.imread("./assets/SL1.jpg", cv2.IMREAD_GRAYSCALE)
 
 # --- Create a binary mask of just the white areas ---
 _, white_mask = cv2.threshold(overlay_img_bg, 240, 255, cv2.THRESH_BINARY)
@@ -154,7 +164,7 @@ combined = foreground_bright.astype(np.float32) + background_with_overlay.astype
 
 # --- Reading Overlay for Foreground
 
-overlay_img_fg = cv2.imread("SL2.jpg", cv2.IMREAD_GRAYSCALE)
+overlay_img_fg = cv2.imread("./assets/SL2.jpg", cv2.IMREAD_GRAYSCALE)
 
 # --- Create a binary mask of just the white areas ---
 _, white_mask_fg = cv2.threshold(overlay_img_fg, 240, 255, cv2.THRESH_BINARY)

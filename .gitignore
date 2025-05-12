@@ -8,6 +8,8 @@ __pycache__/
 
 # Images (optional)
 *.jpg
+!assets/SL1.jpg
+!assets/SL2.jpg
 *.png
 *.JPEG
 
