@@ -4,7 +4,7 @@ from rembg import remove
 from PIL import Image
 
 # --- Load original image ---
-img = cv2.imread("ax.png")
+img = cv2.imread("ax.jpg")
 if img is not None:
     print("Image loaded successfully.")
 else:
@@ -26,10 +26,11 @@ else:
 # Erode mask to remove fringe/pixelation at edges
 kernel = np.ones((3, 3), np.uint8)
 mask_eroded = cv2.erode(mask, kernel, iterations=1)
+mask_closed = cv2.morphologyEx(mask_eroded, cv2.MORPH_CLOSE, kernel, iterations=1)
 
 # Normalize and blur (feather) mask for smooth transitions
-mask_normalized = mask_eroded.astype(np.float32) / 255.0
-mask_normalized = cv2.GaussianBlur(mask_normalized, (11, 11), 0)
+mask_normalized = mask_closed.astype(np.float32) / 255.0
+mask_normalized = cv2.GaussianBlur(mask_normalized, (21, 21), 0)
 mask_3ch = cv2.merge([mask_normalized]*3)
 
 # --- Create background and foreground layers ---
@@ -49,11 +50,11 @@ sharpen_kernel = np.array([[0, -0.95, 0],
 foreground_sharp = cv2.filter2D(foreground.astype(np.uint8), -1, sharpen_kernel)
 foreground_smoothed = cv2.bilateralFilter(foreground_sharp, d=15, sigmaColor=75, sigmaSpace=75)
 
-# #Gamma correction on foreground
-# gamma = 0.9
+#Gamma correction on foreground
+gamma = 0.9
 
-# lut = np.array([((i / 255.0) ** gamma) * 255 for i in np.arange(256)]).astype("uint8")
-# foreground_bright = cv2.LUT(foreground_sharp.astype(np.uint8), lut)
+lut = np.array([((i / 255.0) ** gamma) * 255 for i in np.arange(256)]).astype("uint8")
+foreground_bright = cv2.LUT(foreground_sharp.astype(np.uint8), lut)
 
 
 # Brighten foreground (exposure boost)
@@ -149,7 +150,7 @@ bg[y_offset:y_end, x_offset:x_end] = pattern_blend.astype(np.uint8)
 background_with_overlay = bg
 
 # Creating an image consisting of the background with its overlay and the foreground
-combined = foreground_sharp.astype(np.float32) + background_with_overlay.astype(np.float32) * (1 - mask_3ch)
+combined = foreground_bright.astype(np.float32) + background_with_overlay.astype(np.float32) * (1 - mask_3ch)
 
 # --- Reading Overlay for Foreground
 
@@ -234,10 +235,6 @@ brand_fade_mask_3ch = np.stack([brand_fade_mask]*3, axis = -1)
 
 brand_layer = brand_color.astype(np.float32) * brand_fade_mask_3ch
 
-cv2.imshow("gradient color",brand_layer.astype(np.uint8))
-cv2.waitKey(0)
-cv2.destroyAllWindows()
-
 final_result = (
     semi_final_result.astype(np.float32) * (1-brand_fade_mask_3ch) + brand_layer
 )
@@ -246,6 +243,4 @@ final_result = np.clip(final_result,0,255).astype(np.uint8)
 
 
 
-cv2.imshow("Final Result", final_result)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+cv2.imwrite("output.png", final_result)
