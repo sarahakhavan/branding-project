@@ -9,6 +9,7 @@ __pycache__/
 # Images (optional)
 *.jpg
 *.png
+*.JPEG
 
 # macOS / system
 .DS_Store

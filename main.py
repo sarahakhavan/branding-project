@@ -211,12 +211,41 @@ combined_pic[fg_y_offset:fg_y_end, fg_x_offset:fg_x_end] = np.clip(fg_blended_re
 # Update foreground
 foreground_with_overlay = combined_pic
 
-# --- Step 7: Final composition ---
-final_result = np.clip(combined, 0, 255).astype(np.uint8)
-final_region = final_result[fg_y_offset:fg_y_end, fg_x_offset:fg_x_end]
-final_blended = cv2.addWeighted(final_region.astype(np.float32), 1.0, fg_ptn_crop.astype(np.float32), opacity_fg, 0)
-final_result[fg_y_offset:fg_y_end, fg_x_offset:fg_x_end] = np.clip(final_blended, 0, 255).astype(np.uint8)
+# --- Semi-final composition ---
+semi_final_result = np.clip(combined, 0, 255).astype(np.uint8)
+semi_final_region = semi_final_result[fg_y_offset:fg_y_end, fg_x_offset:fg_x_end]
+semi_final_blended = cv2.addWeighted(semi_final_region.astype(np.float32), 1.0, fg_ptn_crop.astype(np.float32), opacity_fg, 0)
+semi_final_result[fg_y_offset:fg_y_end, fg_x_offset:fg_x_end] = np.clip(semi_final_blended, 0, 255).astype(np.uint8)
 
-cv2.imshow("Final Result with White Overlay", final_result)
+
+# --- Brand Gradient
+
+brand_color = np.array([45, 88, 250], dtype=np.uint8)
+
+height, width = semi_final_result.shape[:2]
+# height = int(height)
+# width = int(width)
+
+grad_x = np.linspace(1.0, 0.0, width, dtype=np.float32)
+grad_y = np.linspace(1.0, 0.0, height, dtype=np.float32)
+
+brand_fade_mask = np.outer(grad_y, grad_x)
+brand_fade_mask_3ch = np.stack([brand_fade_mask]*3, axis = -1)
+
+brand_layer = brand_color.astype(np.float32) * brand_fade_mask_3ch
+
+cv2.imshow("gradient color",brand_layer.astype(np.uint8))
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+
+final_result = (
+    semi_final_result.astype(np.float32) * (1-brand_fade_mask_3ch) + brand_layer
+)
+final_result = np.clip(final_result,0,255).astype(np.uint8)
+
+
+
+
+cv2.imshow("Final Result", final_result)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
