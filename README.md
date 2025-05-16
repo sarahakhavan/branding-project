@@ -28,15 +28,15 @@ Then run:
 ## Image Processing Workflow
 
 ### 1. Layer Separation
-- Separate the image into **background** and **foreground (person)** layers.
+- Separates the image into **background** and **foreground (person)** layers.
 - Enables independent editing and manipulation of each layer.
 
 ### 2. Edge Refinement
-- Apply **erosion** and **Gaussian blur** techniques to the foreground edges.
+- Applies **erosion** and **Gaussian blur** techniques to the foreground edges.
 - Ensures smooth and natural blending between the person and the background.
 
 ### 3. Image Enhancements
-- Perform general image improvements, such as contrast adjustment, sharpening, and color correction, to enhance overall quality.
+- Performs general image improvements, such as contrast adjustment, sharpening, and color correction, to enhance overall quality.
 
 ### 4. Independent Overlay Integration
 - **Background Overlay**:
@@ -46,8 +46,8 @@ Then run:
   - Applies a second overlay with **adjustable opacity** and **smooth blending**.
 
 ### 5. Final Composition
-- Merge the enhanced foreground and background layers.
-- Apply subtle **branding elements** to finalize the image.
+- Merges the enhanced foreground and background layers.
+- Applies subtle **branding elements** to finalize the image.
  
 
 ## Assumptions and Notes
